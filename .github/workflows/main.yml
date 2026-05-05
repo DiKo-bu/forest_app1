@@ -1,0 +1,40 @@
+name: Build Mobile App
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Initialize Android Project
+        run: |
+          mkdir -p temp_src
+          cp -r lib pubspec.yaml assets temp_src/
+          flutter create --project-name forest_app --org com.forestry.planner .
+          cp -r temp_src/* .
+          flutter pub get
+          dart run flutter_launcher_icons
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ForestApp-Release
+          path: build/app/outputs/flutter-apk/app-release.apk
