@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert';                              // НОВОЕ
-import 'package:flutter/services.dart';             // НОВОЕ (для Clipboard)
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import '../models/forest_task.dart';
 import '../utils/app_localization.dart';
 import '../utils/storage_helper.dart';
@@ -47,7 +47,6 @@ class _TaskScreenState extends State<TaskScreen> {
     await StorageHelper.saveLang(_currentLang);
   }
 
-  // НОВЫЙ МЕТОД: импорт плана из JSON
   void _importPlanFromJson(String jsonStr) {
     try {
       final List<dynamic> plan = jsonDecode(jsonStr);
@@ -88,7 +87,6 @@ class _TaskScreenState extends State<TaskScreen> {
     }
   }
 
-  // НОВЫЙ ДИАЛОГ для вставки JSON-плана
   void _showImportDialog() {
     TextEditingController ctrl = TextEditingController();
     showDialog(
@@ -117,8 +115,6 @@ class _TaskScreenState extends State<TaskScreen> {
     );
   }
 
-  // Остальной код без изменений, за исключением добавленной кнопки в AppBar
-  // ...
   List<ForestTask> get _filteredAndSortedTasks {
     List<ForestTask> result = _tasks;
     if (_currentFilter != 'Все') {
@@ -181,13 +177,17 @@ class _TaskScreenState extends State<TaskScreen> {
   Widget build(BuildContext context) {
     final displayTasks = _filteredAndSortedTasks;
 
+    // Динамические фильтры на основе имеющихся типов задач
+    final allTypes = _tasks.map((t) => t.type).toSet().toList();
+    allTypes.sort();
+    final filters = ['Все', ...allTypes.where((t) => t != 'Все')];
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_tr('app_title')),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         actions: [
-          // НОВАЯ КНОПКА ИМПОРТА ПЛАНА
           IconButton(
             icon: const Icon(Icons.download),
             tooltip: _tr('import_plan'),
@@ -212,7 +212,7 @@ class _TaskScreenState extends State<TaskScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
-              children: ['Все', 'Обход', 'Посадка', 'Вырубка', 'Охрана'].map((filter) {
+              children: filters.map((filter) {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
