@@ -1,12 +1,10 @@
-// lib/widgets/task_dialog.dart
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/forest_task.dart';
 import '../utils/app_localization.dart';
 
 class TaskDialog extends StatefulWidget {
-  final ForestTask? task; 
+  final ForestTask? task;
   final String lang;
 
   const TaskDialog({super.key, this.task, required this.lang});
@@ -21,16 +19,45 @@ class _TaskDialogState extends State<TaskDialog> {
   late String type;
   late DateTime startDate;
   late DateTime endDate;
-  
+
+  // Посадка
   int? plantingQty;
   double? plantingArea;
   String? cultureType;
+  String? plantingType;
+
+  // Вырубка (старая)
   double? cuttingVol;
   double? cuttingArea;
-  
-  // Новые переменные охраны
+
+  // Охрана
   double? guardLength;
   int? guardQty;
+
+  // Посев
+  String? sowingBreed;
+  double? sowingQuantityKg;
+  double? sowingAreaHa;
+
+  // Выборочная санрубка
+  double? selectiveCuttingArea;
+  double? selectiveCuttingVolume;
+
+  // Сплошная санрубка
+  double? clearCuttingArea;
+  double? clearCuttingVolume;
+
+  // Уборка захламленности
+  double? clearingArea;
+  double? clearingVolume;
+
+  // Установка панно и аншлагов
+  double? panelsQuantity;
+
+  // Общие
+  String? location;
+  String? quarter;
+  String? allotment;
 
   String _tr(String key) => AppLocalization.tr(widget.lang, key);
 
@@ -39,19 +66,39 @@ class _TaskDialogState extends State<TaskDialog> {
     super.initState();
     title = widget.task?.title ?? '';
     sector = widget.task?.sector ?? '';
-    type = widget.task?.type ?? 'Обход';
+    type = widget.task?.type ?? 'Посадка';
     startDate = widget.task?.startDate ?? DateTime.now();
     endDate = widget.task?.endDate ?? DateTime.now().add(const Duration(days: 1));
-    
+
     plantingQty = widget.task?.plantingQuantity;
     plantingArea = widget.task?.plantingArea;
     cultureType = widget.task?.cultureType ?? 'ильмовые';
-    
+    plantingType = widget.task?.plantingType ?? 'сеянцы';
+
     cuttingVol = widget.task?.cuttingVolume;
     cuttingArea = widget.task?.cuttingArea;
-    
+
     guardLength = widget.task?.guardLength;
     guardQty = widget.task?.guardQuantity;
+
+    sowingBreed = widget.task?.sowingBreed;
+    sowingQuantityKg = widget.task?.sowingQuantityKg;
+    sowingAreaHa = widget.task?.sowingAreaHa;
+
+    selectiveCuttingArea = widget.task?.selectiveCuttingArea;
+    selectiveCuttingVolume = widget.task?.selectiveCuttingVolume;
+
+    clearCuttingArea = widget.task?.clearCuttingArea;
+    clearCuttingVolume = widget.task?.clearCuttingVolume;
+
+    clearingArea = widget.task?.clearingArea;
+    clearingVolume = widget.task?.clearingVolume;
+
+    panelsQuantity = widget.task?.panelsQuantity;
+
+    location = widget.task?.location;
+    quarter = widget.task?.quarter;
+    allotment = widget.task?.allotment;
   }
 
   void _saveAndClose() {
@@ -67,13 +114,27 @@ class _TaskDialogState extends State<TaskDialog> {
       plantingQuantity: type == 'Посадка' ? plantingQty : null,
       plantingArea: type == 'Посадка' ? plantingArea : null,
       cultureType: type == 'Посадка' ? cultureType : null,
-      cuttingVolume: type == 'Вырубка' ? cuttingVol : null,
-      cuttingArea: type == 'Вырубка' ? cuttingArea : null,
-      guardLength: type == 'Охрана' ? guardLength : null,
-      guardQuantity: type == 'Охрана' ? guardQty : null,
+      plantingType: type == 'Посадка' ? plantingType : null,
+      cuttingVolume: null,
+      cuttingArea: null,
+      guardLength: null,
+      guardQuantity: null,
+      sowingBreed: type == 'Посев' ? sowingBreed : null,
+      sowingQuantityKg: type == 'Посев' ? sowingQuantityKg : null,
+      sowingAreaHa: type == 'Посев' ? sowingAreaHa : null,
+      selectiveCuttingArea: type == 'Выборочная санитарная рубка' ? selectiveCuttingArea : null,
+      selectiveCuttingVolume: type == 'Выборочная санитарная рубка' ? selectiveCuttingVolume : null,
+      clearCuttingArea: type == 'Сплошная санитарная рубка' ? clearCuttingArea : null,
+      clearCuttingVolume: type == 'Сплошная санитарная рубка' ? clearCuttingVolume : null,
+      clearingArea: type == 'Уборка захламленности' ? clearingArea : null,
+      clearingVolume: type == 'Уборка захламленности' ? clearingVolume : null,
+      panelsQuantity: type == 'Установка панно и аншлагов' ? panelsQuantity : null,
+      location: (type == 'Посадка' || type == 'Посев') ? location : null,
+      quarter: (type == 'Выборочная санитарная рубка' || type == 'Сплошная санитарная рубка' || type == 'Уборка захламленности' || type == 'Установка панно и аншлагов') ? quarter : null,
+      allotment: (type == 'Выборочная санитарная рубка' || type == 'Сплошная санитарная рубка' || type == 'Уборка захламленности' || type == 'Установка панно и аншлагов') ? allotment : null,
     );
 
-    Navigator.pop(context, resultTask); 
+    Navigator.pop(context, resultTask);
   }
 
   @override
@@ -87,54 +148,39 @@ class _TaskDialogState extends State<TaskDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // 1. Поле "Что сделать" (меняется в зависимости от типа)
-            if (type == 'Охрана')
-              DropdownButtonFormField<String>(
-                value: ['min_polosy', 'uhod_polosy', 'anshlagi', 'patrul'].contains(title) ? title : null,
-                decoration: InputDecoration(labelText: _tr('what')),
-                items: ['min_polosy', 'uhod_polosy', 'anshlagi', 'patrul']
-                    .map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
-                onChanged: (v) => setState(() {
-                  title = v!;
-                  guardLength = null;
-                  guardQty = null;
-                }),
-              )
-            else
-              TextFormField(
-                initialValue: title,
-                decoration: InputDecoration(labelText: _tr('what')), 
-                onChanged: (v) => title = v
-              ),
-            const SizedBox(height: 16),
-
-            // 2. Участок
-            TextFormField(
-              initialValue: sector,
-              decoration: InputDecoration(labelText: _tr('sector')), 
-              onChanged: (v) => sector = v
-            ),
-            const SizedBox(height: 16),
-
-            // 3. Тип задачи
             DropdownButtonFormField<String>(
               value: type,
-              items: ['Обход', 'Посадка', 'Вырубка', 'Охрана'].map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
-              onChanged: (v) => setState(() {
-                type = v!;
-                // Если меняем тип на Охрану, сбрасываем title, чтобы не висел старый текст
-                if (type == 'Охрана' && !['min_polosy', 'uhod_polosy', 'anshlagi', 'patrul'].contains(title)) {
-                  title = 'min_polosy';
-                }
-              }),
+              items: [
+                'Посадка', 'Посев', 'Выборочная санитарная рубка',
+                'Сплошная санитарная рубка', 'Уборка захламленности',
+                'Установка панно и аншлагов'
+              ].map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
+              onChanged: (v) => setState(() => type = v!),
             ),
             const SizedBox(height: 16),
 
-            // --- БЛОК ПОСАДКИ ---
+            // 2. Участок/Квартал (общее поле sector)
+            TextFormField(
+              initialValue: sector,
+              decoration: InputDecoration(labelText: _tr('sector')),
+              onChanged: (v) => sector = v,
+            ),
+            const SizedBox(height: 16),
+
+            // ---------- ПОЛЯ ТОЛЬКО ДЛЯ ПОСАДКИ ----------
             if (type == 'Посадка') ...[
+              DropdownButtonFormField<String>(
+                value: plantingType,
+                decoration: InputDecoration(labelText: _tr('planting_type')),
+                items: ['сеянцы', 'саженцы', 'черенки']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
+                onChanged: (v) => setState(() => plantingType = v),
+              ),
+              const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: cultureType,
                 decoration: InputDecoration(labelText: _tr('culture_type')),
-                items: ['ильмовые', 'клен', 'ясень', 'лох', 'смородина', 'тополь']
+                items: ['ильмовые', 'клен', 'ясень', 'акация', 'смородина', 'лох', 'шиповник', 'плодово-косточковые', 'плодово-семечковые', 'прочие']
                     .map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
                 onChanged: (v) => setState(() => cultureType = v),
               ),
@@ -160,55 +206,216 @@ class _TaskDialogState extends State<TaskDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              TextFormField(
+                initialValue: location ?? '',
+                decoration: const InputDecoration(labelText: 'Где?'),
+                onChanged: (v) => location = v,
+              ),
             ],
 
-            // --- БЛОК ВЫРУБКИ ---
-            if (type == 'Вырубка') ...[
+            // ---------- ПОЛЯ ТОЛЬКО ДЛЯ ПОСЕВА ----------
+            if (type == 'Посев') ...[
+              DropdownButtonFormField<String>(
+                value: sowingBreed,
+                decoration: const InputDecoration(labelText: 'Порода'),
+                items: ['ильмовые', 'клён', 'ясень', 'акация', 'смородина', 'лох', 'шиповник', 'плодово-косточковые', 'плодово-семечковые', 'прочие']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
+                onChanged: (v) => setState(() => sowingBreed = v),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
-                      initialValue: cuttingVol?.toString() ?? '',
+                      initialValue: sowingQuantityKg?.toString() ?? '',
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(labelText: _tr('cutting_vol')),
-                      onChanged: (v) => cuttingVol = double.tryParse(v.replaceAll(',', '.')),
+                      decoration: const InputDecoration(labelText: 'Кол-во, кг'),
+                      onChanged: (v) => sowingQuantityKg = double.tryParse(v.replaceAll(',', '.')),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: TextFormField(
-                      initialValue: cuttingArea?.toString() ?? '',
+                      initialValue: sowingAreaHa?.toString() ?? '',
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(labelText: _tr('cutting_area')),
-                      onChanged: (v) => cuttingArea = double.tryParse(v.replaceAll(',', '.')),
+                      decoration: const InputDecoration(labelText: 'Площадь, га'),
+                      onChanged: (v) => sowingAreaHa = double.tryParse(v.replaceAll(',', '.')),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              TextFormField(
+                initialValue: location ?? '',
+                decoration: const InputDecoration(labelText: 'Где?'),
+                onChanged: (v) => location = v,
+              ),
             ],
 
-            // --- БЛОК ОХРАНЫ (ДИНАМИЧЕСКИЙ) ---
-            if (type == 'Охрана') ...[
-              if (title == 'min_polosy' || title == 'uhod_polosy') ...[
-                TextFormField(
-                  initialValue: guardLength?.toString() ?? '',
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: _tr('guard_km')),
-                  onChanged: (v) => guardLength = double.tryParse(v.replaceAll(',', '.')),
-                ),
-                const SizedBox(height: 16),
-              ],
-              if (title == 'anshlagi') ...[
-                TextFormField(
-                  initialValue: guardQty?.toString() ?? '',
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: _tr('guard_qty')),
-                  onChanged: (v) => guardQty = int.tryParse(v),
-                ),
-                const SizedBox(height: 16),
-              ],
+            // ---------- ПОЛЯ ДЛЯ ВЫБОРОЧНОЙ САНРУБКИ ----------
+            if (type == 'Выборочная санитарная рубка') ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: selectiveCuttingArea?.toString() ?? '',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Площадь, га'),
+                      onChanged: (v) => selectiveCuttingArea = double.tryParse(v.replaceAll(',', '.')),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: selectiveCuttingVolume?.toString() ?? '',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Объём, м³'),
+                      onChanged: (v) => selectiveCuttingVolume = double.tryParse(v.replaceAll(',', '.')),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: quarter ?? '',
+                      decoration: const InputDecoration(labelText: 'Квартал'),
+                      onChanged: (v) => quarter = v,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: allotment ?? '',
+                      decoration: const InputDecoration(labelText: 'Выдел'),
+                      onChanged: (v) => allotment = v,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            // ---------- ПОЛЯ ДЛЯ СПЛОШНОЙ САНРУБКИ ----------
+            if (type == 'Сплошная санитарная рубка') ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: clearCuttingArea?.toString() ?? '',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Площадь, га'),
+                      onChanged: (v) => clearCuttingArea = double.tryParse(v.replaceAll(',', '.')),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: clearCuttingVolume?.toString() ?? '',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Объём, м³'),
+                      onChanged: (v) => clearCuttingVolume = double.tryParse(v.replaceAll(',', '.')),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: quarter ?? '',
+                      decoration: const InputDecoration(labelText: 'Квартал'),
+                      onChanged: (v) => quarter = v,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: allotment ?? '',
+                      decoration: const InputDecoration(labelText: 'Выдел'),
+                      onChanged: (v) => allotment = v,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            // ---------- ПОЛЯ ДЛЯ УБОРКИ ЗАХЛАМЛЕННОСТИ ----------
+            if (type == 'Уборка захламленности') ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: clearingArea?.toString() ?? '',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Площадь, га'),
+                      onChanged: (v) => clearingArea = double.tryParse(v.replaceAll(',', '.')),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: clearingVolume?.toString() ?? '',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Объём, м³'),
+                      onChanged: (v) => clearingVolume = double.tryParse(v.replaceAll(',', '.')),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: quarter ?? '',
+                      decoration: const InputDecoration(labelText: 'Квартал'),
+                      onChanged: (v) => quarter = v,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: allotment ?? '',
+                      decoration: const InputDecoration(labelText: 'Выдел'),
+                      onChanged: (v) => allotment = v,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            // ---------- ПОЛЯ ДЛЯ УСТАНОВКИ ПАННО ----------
+            if (type == 'Установка панно и аншлагов') ...[
+              TextFormField(
+                initialValue: panelsQuantity?.toString() ?? '',
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Штуки'),
+                onChanged: (v) => panelsQuantity = double.tryParse(v.replaceAll(',', '.')),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: quarter ?? '',
+                      decoration: const InputDecoration(labelText: 'Квартал'),
+                      onChanged: (v) => quarter = v,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: allotment ?? '',
+                      decoration: const InputDecoration(labelText: 'Выдел'),
+                      onChanged: (v) => allotment = v,
+                    ),
+                  ),
+                ],
+              ),
             ],
 
             // --- ВЫБОР ДАТЫ ---
@@ -253,8 +460,8 @@ class _TaskDialogState extends State<TaskDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: Text(_tr('cancel'), style: const TextStyle(color: Colors.green))),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade50),
-          onPressed: _saveAndClose, 
-          child: Text(isEdit ? _tr('save') : _tr('add'), style: const TextStyle(color: Colors.green))
+          onPressed: _saveAndClose,
+          child: Text(isEdit ? _tr('save') : _tr('add'), style: const TextStyle(color: Colors.green)),
         ),
       ],
     );

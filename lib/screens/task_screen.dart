@@ -51,27 +51,31 @@ class _TaskScreenState extends State<TaskScreen> {
     try {
       final List<dynamic> plan = jsonDecode(jsonStr);
       for (var item in plan) {
-        String type = item['workType'] ?? 'Обход';
-        int? plantingQty = (type == 'Посадка' && item['targetQuantity'] != null) ? (item['targetQuantity'] as num).toInt() : null;
-        double? plantingArea = (type == 'Посадка' && item['targetArea'] != null) ? (item['targetArea'] as num).toDouble() : null;
-        double? cuttingVol = (type == 'Вырубка' && item['targetQuantity'] != null) ? (item['targetQuantity'] as num).toDouble() : null;
-        double? guardLength = (type == 'Охрана' && item['targetLength'] != null) ? (item['targetLength'] as num).toDouble() : null;
-        int? guardQty = (type == 'Охрана' && item['targetQuantity'] != null) ? (item['targetQuantity'] as num).toInt() : null;
-
+        String type = item['workType'] ?? 'Посадка';
         final task = ForestTask(
-          title: item['name'] ?? 'Без названия',
+          title: item['name'] ?? '',
           sector: item['sector'] ?? '',
           startDate: DateTime.now(),
           endDate: DateTime.now().add(Duration(days: (item['likely'] ?? 1).toInt())),
           type: type,
           isDone: false,
-          plantingQuantity: plantingQty,
-          plantingArea: plantingArea,
-          cultureType: item['cultureType'],
-          cuttingVolume: cuttingVol,
-          cuttingArea: (type == 'Вырубка' && item['targetArea'] != null) ? (item['targetArea'] as num).toDouble() : null,
-          guardLength: guardLength,
-          guardQuantity: guardQty,
+          plantingQuantity: (type == 'Посадка' && item['plantingQuantity'] != null) ? (item['plantingQuantity'] as num).toInt() : null,
+          plantingArea: (type == 'Посадка' && item['plantingArea'] != null) ? (item['plantingArea'] as num).toDouble() : null,
+          cultureType: item['culture'],
+          plantingType: item['plantingType'],
+          sowingBreed: (type == 'Посев') ? item['sowingBreed'] : null,
+          sowingQuantityKg: (type == 'Посев' && item['sowingQuantityKg'] != null) ? (item['sowingQuantityKg'] as num).toDouble() : null,
+          sowingAreaHa: (type == 'Посев' && item['sowingAreaHa'] != null) ? (item['sowingAreaHa'] as num).toDouble() : null,
+          selectiveCuttingArea: (type == 'Выборочная санитарная рубка' && item['cuttingArea'] != null) ? (item['cuttingArea'] as num).toDouble() : null,
+          selectiveCuttingVolume: (type == 'Выборочная санитарная рубка' && item['cuttingVolume'] != null) ? (item['cuttingVolume'] as num).toDouble() : null,
+          clearCuttingArea: (type == 'Сплошная санитарная рубка' && item['clearCuttingArea'] != null) ? (item['clearCuttingArea'] as num).toDouble() : null,
+          clearCuttingVolume: (type == 'Сплошная санитарная рубка' && item['clearCuttingVolume'] != null) ? (item['clearCuttingVolume'] as num).toDouble() : null,
+          clearingArea: (type == 'Уборка захламленности' && item['clearingArea'] != null) ? (item['clearingArea'] as num).toDouble() : null,
+          clearingVolume: (type == 'Уборка захламленности' && item['clearingVolume'] != null) ? (item['clearingVolume'] as num).toDouble() : null,
+          panelsQuantity: (type == 'Установка панно и аншлагов' && item['panelsQuantity'] != null) ? (item['panelsQuantity'] as num).toDouble() : null,
+          location: item['location'],
+          quarter: item['quarter'],
+          allotment: item['allotment'],
         );
         _tasks.add(task);
       }
@@ -132,7 +136,7 @@ class _TaskScreenState extends State<TaskScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(_tr('del_title')),
-        content: Text('${_tr('del_desc')} "${_tr(_filteredAndSortedTasks[index].title)}"?'),
+        content: Text('${_tr('del_desc')} "${_filteredAndSortedTasks[index].title}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text(_tr('cancel'))),
           ElevatedButton(
@@ -177,7 +181,6 @@ class _TaskScreenState extends State<TaskScreen> {
   Widget build(BuildContext context) {
     final displayTasks = _filteredAndSortedTasks;
 
-    // Динамические фильтры на основе имеющихся типов задач
     final allTypes = _tasks.map((t) => t.type).toSet().toList();
     allTypes.sort();
     final filters = ['Все', ...allTypes.where((t) => t != 'Все')];
@@ -234,13 +237,32 @@ class _TaskScreenState extends State<TaskScreen> {
                       final task = displayTasks[index];
                       String dateStr = '${DateFormat('dd.MM').format(task.startDate)} - ${DateFormat('dd.MM').format(task.endDate)}';
                       String subtitleText = '${task.sector} • $dateStr';
+                      // Добавим краткую информацию по типу
                       if (task.type == 'Посадка') {
                         subtitleText += '\n${_tr(task.cultureType ?? '')} • ${task.plantingQuantity ?? 0} ${_tr('pcs')} • ${task.plantingArea ?? 0} ${_tr('ha')}';
-                      } else if (task.type == 'Вырубка') {
-                        subtitleText += '\n${task.cuttingVolume ?? 0} ${_tr('cubes')} • ${task.cuttingArea ?? 0} ${_tr('ha')}';
+                        if (task.location != null) subtitleText += ' • ${task.location}';
+                      } else if (task.type == 'Посев') {
+                        subtitleText += '\n${task.sowingBreed ?? ''} • ${task.sowingQuantityKg ?? 0} кг • ${task.sowingAreaHa ?? 0} га';
+                        if (task.location != null) subtitleText += ' • ${task.location}';
+                      } else if (task.type == 'Выборочная санитарная рубка') {
+                        subtitleText += '\nПлощадь: ${task.selectiveCuttingArea ?? 0} га, Объём: ${task.selectiveCuttingVolume ?? 0} м³';
+                        if (task.quarter != null) subtitleText += ' • Кв. ${task.quarter}';
+                        if (task.allotment != null) subtitleText += ' • Выд. ${task.allotment}';
+                      } else if (task.type == 'Сплошная санитарная рубка') {
+                        subtitleText += '\nПлощадь: ${task.clearCuttingArea ?? 0} га, Объём: ${task.clearCuttingVolume ?? 0} м³';
+                        if (task.quarter != null) subtitleText += ' • Кв. ${task.quarter}';
+                        if (task.allotment != null) subtitleText += ' • Выд. ${task.allotment}';
+                      } else if (task.type == 'Уборка захламленности') {
+                        subtitleText += '\nПлощадь: ${task.clearingArea ?? 0} га, Объём: ${task.clearingVolume ?? 0} м³';
+                        if (task.quarter != null) subtitleText += ' • Кв. ${task.quarter}';
+                        if (task.allotment != null) subtitleText += ' • Выд. ${task.allotment}';
+                      } else if (task.type == 'Установка панно и аншлагов') {
+                        subtitleText += '\nШтук: ${task.panelsQuantity ?? 0}';
+                        if (task.quarter != null) subtitleText += ' • Кв. ${task.quarter}';
+                        if (task.allotment != null) subtitleText += ' • Выд. ${task.allotment}';
                       } else if (task.type == 'Охрана') {
                         if (task.guardLength != null) subtitleText += '\n${task.guardLength} ${_tr('km')}';
-                        if (task.guardQuantity != null) subtitleText += '\n${task.guardQuantity} ${_tr('pcs')}';
+                        if (task.guardQuantity != null) subtitleText += ' • ${task.guardQuantity} ${_tr('pcs')}';
                       }
 
                       return Card(
@@ -250,17 +272,18 @@ class _TaskScreenState extends State<TaskScreen> {
                           leading: CircleAvatar(
                             backgroundColor: task.isDone ? Colors.grey : Colors.green.shade100,
                             child: Icon(
-                              task.type == 'Посадка'
-                                  ? Icons.park
-                                  : (task.type == 'Вырубка'
-                                      ? Icons.content_cut
-                                      : (task.type == 'Охрана' ? Icons.security : Icons.assignment)),
+                              task.type == 'Посадка' ? Icons.park :
+                              (task.type == 'Посев' ? Icons.grain :
+                              (task.type == 'Выборочная санитарная рубка' || task.type == 'Сплошная санитарная рубка' ? Icons.content_cut :
+                              (task.type == 'Уборка захламленности' ? Icons.cleaning_services :
+                              (task.type == 'Установка панно и аншлагов' ? Icons.shield :
+                              Icons.assignment)))),
                               color: Colors.green.shade800,
                             ),
                           ),
-                          title: Text(_tr(task.title), style: TextStyle(decoration: task.isDone ? TextDecoration.lineThrough : null)),
+                          title: Text(task.title, style: TextStyle(decoration: task.isDone ? TextDecoration.lineThrough : null)),
                           subtitle: Text(subtitleText),
-                          isThreeLine: task.type == 'Посадка' || task.type == 'Вырубка' || task.type == 'Охрана',
+                          isThreeLine: true,
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [

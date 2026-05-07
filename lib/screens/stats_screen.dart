@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-import 'dart:convert';                              // НОВОЕ
-import 'package:flutter/services.dart';             // НОВОЕ
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import '../models/forest_task.dart';
 import '../utils/storage_helper.dart';
 import '../utils/app_localization.dart';
@@ -21,20 +21,40 @@ class StatsScreen extends StatelessWidget {
       );
       return;
     }
+
     int totalPlantingQty = 0;
     double totalPlantingArea = 0;
     double totalCuttingVol = 0;
     double totalCuttingArea = 0;
     double totalGuardLength = 0;
     int totalGuardQty = 0;
+    // Добавим агрегацию по новым типам
+    double totalSowingKg = 0;
+    double totalSowingArea = 0;
+    double totalClearCuttingArea = 0;
+    double totalClearCuttingVolume = 0;
+    double totalClearingArea = 0;
+    double totalClearingVolume = 0;
+    int totalPanels = 0;
 
     for (var t in completed) {
       if (t.type == 'Посадка') {
         totalPlantingQty += (t.plantingQuantity ?? 0);
         totalPlantingArea += (t.plantingArea ?? 0);
-      } else if (t.type == 'Вырубка') {
-        totalCuttingVol += (t.cuttingVolume ?? 0);
-        totalCuttingArea += (t.cuttingArea ?? 0);
+      } else if (t.type == 'Посев') {
+        totalSowingKg += (t.sowingQuantityKg ?? 0);
+        totalSowingArea += (t.sowingAreaHa ?? 0);
+      } else if (t.type == 'Выборочная санитарная рубка') {
+        totalCuttingVol += (t.selectiveCuttingVolume ?? 0);
+        totalCuttingArea += (t.selectiveCuttingArea ?? 0);
+      } else if (t.type == 'Сплошная санитарная рубка') {
+        totalClearCuttingVolume += (t.clearCuttingVolume ?? 0);
+        totalClearCuttingArea += (t.clearCuttingArea ?? 0);
+      } else if (t.type == 'Уборка захламленности') {
+        totalClearingVolume += (t.clearingVolume ?? 0);
+        totalClearingArea += (t.clearingArea ?? 0);
+      } else if (t.type == 'Установка панно и аншлагов') {
+        totalPanels += (t.panelsQuantity ?? 0).toInt();
       } else if (t.type == 'Охрана') {
         totalGuardLength += (t.guardLength ?? 0);
         totalGuardQty += (t.guardQuantity ?? 0);
@@ -45,32 +65,18 @@ class StatsScreen extends StatelessWidget {
     sb.writeln('🌳 ОТЧЕТ О ВЫПОЛНЕННЫХ РАБОТАХ');
     sb.writeln('Дата: ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.now())}');
     sb.writeln('--------------------------------');
-    sb.writeln('ПОСАДКА ЛЕСА:');
-    sb.writeln('Высажено саженцев: $totalPlantingQty шт.');
-    sb.writeln('Площадь посадок: ${totalPlantingArea.toStringAsFixed(1)} га.');
-    sb.writeln('--------------------------------');
-    sb.writeln('ВЫРУБКА И РАСЧИСТКА:');
-    sb.writeln('Объем заготовки: ${totalCuttingVol.toStringAsFixed(1)} куб.м.');
-    sb.writeln('Площадь вырубок: ${totalCuttingArea.toStringAsFixed(1)} га.');
-    sb.writeln('--------------------------------');
-    sb.writeln('ОХРАНА И ЗАЩИТА:');
-    sb.writeln('Пройдено/обработано: ${totalGuardLength.toStringAsFixed(1)} км.');
-    sb.writeln('Установлено/отремонтировано: $totalGuardQty шт.');
+    sb.writeln('ПОСАДКА: $totalPlantingQty шт, $totalPlantingArea га');
+    sb.writeln('ПОСЕВ: ${totalSowingKg.toStringAsFixed(1)} кг, $totalSowingArea га');
+    sb.writeln('ВЫБОРОЧНАЯ САНРУБКА: ${totalCuttingVol.toStringAsFixed(1)} м³, $totalCuttingArea га');
+    sb.writeln('СПЛОШНАЯ САНРУБКА: ${totalClearCuttingVolume.toStringAsFixed(1)} м³, $totalClearCuttingArea га');
+    sb.writeln('УБОРКА ЗАХЛАМЛЕННОСТИ: ${totalClearingVolume.toStringAsFixed(1)} м³, $totalClearingArea га');
+    sb.writeln('ПАННО И АНШЛАГИ: $totalPanels шт');
+    sb.writeln('ОХРАНА: ${totalGuardLength.toStringAsFixed(1)} км, $totalGuardQty шт');
     sb.writeln('--------------------------------\n');
     sb.writeln('ДЕТАЛИЗАЦИЯ:');
-
     for (int i = 0; i < completed.length; i++) {
       final t = completed[i];
-      sb.write('${i + 1}. ${_tr(t.type)} (${t.sector})');
-      if (t.type == 'Посадка') {
-        sb.write(' - ${_tr(t.cultureType ?? '')}, ${t.plantingQuantity} шт, ${t.plantingArea} га');
-      } else if (t.type == 'Вырубка') {
-        sb.write(' - ${t.cuttingVolume} куб.м, ${t.cuttingArea} га');
-      } else if (t.type == 'Охрана') {
-        sb.write(' - ${_tr(t.title)}');
-        if (t.guardLength != null) sb.write(', ${t.guardLength} км');
-        if (t.guardQuantity != null) sb.write(', ${t.guardQuantity} шт');
-      }
+      sb.write('${i + 1}. ${t.type} (${t.sector})');
       String dates = '${DateFormat('dd.MM').format(t.startDate)}-${DateFormat('dd.MM').format(t.endDate)}';
       sb.writeln(' | $dates');
     }
@@ -78,15 +84,24 @@ class StatsScreen extends StatelessWidget {
     Share.share(sb.toString(), subject: 'Отчет лесничества');
   }
 
-  // НОВЫЙ МЕТОД: экспорт в JSON для Прогноза
   void _exportJsonReport(BuildContext context, List<ForestTask> tasks) {
     final Map<String, dynamic> report = {};
     for (var t in tasks) {
-      // Используем title как ключ (позже можно заменить на planId)
       report[t.title] = {
         'completed': t.isDone,
-        if (t.isDone)
-          'actual': t.endDate.difference(t.startDate).inDays.toDouble(),
+        if (t.isDone) 'actual': t.endDate.difference(t.startDate).inDays.toDouble(),
+        // добавим фактические объёмы для отчёта в prognoz
+        if (t.type == 'Посадка' && t.plantingQuantity != null) 'plantingQuantity': t.plantingQuantity,
+        if (t.type == 'Посадка' && t.plantingArea != null) 'plantingArea': t.plantingArea,
+        if (t.type == 'Посев' && t.sowingQuantityKg != null) 'sowingQuantityKg': t.sowingQuantityKg,
+        if (t.type == 'Посев' && t.sowingAreaHa != null) 'sowingAreaHa': t.sowingAreaHa,
+        if (t.type == 'Выборочная санитарная рубка' && t.selectiveCuttingArea != null) 'cuttingArea': t.selectiveCuttingArea,
+        if (t.type == 'Выборочная санитарная рубка' && t.selectiveCuttingVolume != null) 'cuttingVolume': t.selectiveCuttingVolume,
+        if (t.type == 'Сплошная санитарная рубка' && t.clearCuttingArea != null) 'clearCuttingArea': t.clearCuttingArea,
+        if (t.type == 'Сплошная санитарная рубка' && t.clearCuttingVolume != null) 'clearCuttingVolume': t.clearCuttingVolume,
+        if (t.type == 'Уборка захламленности' && t.clearingArea != null) 'clearingArea': t.clearingArea,
+        if (t.type == 'Уборка захламленности' && t.clearingVolume != null) 'clearingVolume': t.clearingVolume,
+        if (t.type == 'Установка панно и аншлагов' && t.panelsQuantity != null) 'panelsQuantity': t.panelsQuantity,
       };
     }
     final jsonStr = jsonEncode(report);
@@ -112,18 +127,32 @@ class StatsScreen extends StatelessWidget {
         double totalCuttingArea = 0;
         double totalGuardLength = 0;
         int totalGuardQty = 0;
-        Map<String, int> cultures = {};
+        double totalSowingKg = 0;
+        double totalSowingArea = 0;
+        double totalClearCuttingVol = 0;
+        double totalClearCuttingArea = 0;
+        double totalClearingVol = 0;
+        double totalClearingArea = 0;
+        int totalPanels = 0;
 
         for (var t in completed) {
           if (t.type == 'Посадка') {
             totalPlantingQty += (t.plantingQuantity ?? 0);
             totalPlantingArea += (t.plantingArea ?? 0);
-            if (t.cultureType != null) {
-              cultures[t.cultureType!] = (cultures[t.cultureType!] ?? 0) + (t.plantingQuantity ?? 0);
-            }
-          } else if (t.type == 'Вырубка') {
-            totalCuttingVol += (t.cuttingVolume ?? 0);
-            totalCuttingArea += (t.cuttingArea ?? 0);
+          } else if (t.type == 'Посев') {
+            totalSowingKg += (t.sowingQuantityKg ?? 0);
+            totalSowingArea += (t.sowingAreaHa ?? 0);
+          } else if (t.type == 'Выборочная санитарная рубка') {
+            totalCuttingVol += (t.selectiveCuttingVolume ?? 0);
+            totalCuttingArea += (t.selectiveCuttingArea ?? 0);
+          } else if (t.type == 'Сплошная санитарная рубка') {
+            totalClearCuttingVol += (t.clearCuttingVolume ?? 0);
+            totalClearCuttingArea += (t.clearCuttingArea ?? 0);
+          } else if (t.type == 'Уборка захламленности') {
+            totalClearingVol += (t.clearingVolume ?? 0);
+            totalClearingArea += (t.clearingArea ?? 0);
+          } else if (t.type == 'Установка панно и аншлагов') {
+            totalPanels += (t.panelsQuantity ?? 0).toInt();
           } else if (t.type == 'Охрана') {
             totalGuardLength += (t.guardLength ?? 0);
             totalGuardQty += (t.guardQuantity ?? 0);
@@ -155,28 +184,37 @@ class StatsScreen extends StatelessWidget {
               const SizedBox(height: 12),
               const Divider(),
               Text('🟢 ПОСАДКА', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
-              const SizedBox(height: 8),
-              _card(_tr('total_planting_qty'), '$totalPlantingQty', Icons.park, Colors.green),
-              _card(_tr('total_planting_area'), '${totalPlantingArea.toStringAsFixed(1)} ${_tr('ha')}', Icons.map, Colors.green),
+              _card('Саженцев', '$totalPlantingQty шт', Icons.park, Colors.green),
+              _card('Площадь', '${totalPlantingArea.toStringAsFixed(1)} га', Icons.map, Colors.green),
               const SizedBox(height: 12),
               const Divider(),
-              Text('🪓 ВЫРУБКА', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange.shade800)),
-              const SizedBox(height: 8),
-              _card(_tr('total_cutting_vol'), '${totalCuttingVol.toStringAsFixed(1)} ${_tr('cubes')}', Icons.content_cut, Colors.orange),
-              _card(_tr('total_cutting_area'), '${totalCuttingArea.toStringAsFixed(1)} ${_tr('ha')}', Icons.map, Colors.orange),
+              Text('🌾 ПОСЕВ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.brown.shade800)),
+              _card('Масса', '${totalSowingKg.toStringAsFixed(1)} кг', Icons.scale, Colors.brown),
+              _card('Площадь', '${totalSowingArea.toStringAsFixed(1)} га', Icons.map, Colors.brown),
               const SizedBox(height: 12),
               const Divider(),
-              Text('🛡 ОХРАНА И ЗАЩИТА', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue.shade800)),
-              const SizedBox(height: 8),
+              Text('🪓 ВЫБОРОЧНАЯ САНРУБКА', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange.shade800)),
+              _card('Объём', '${totalCuttingVol.toStringAsFixed(1)} м³', Icons.content_cut, Colors.orange),
+              _card('Площадь', '${totalCuttingArea.toStringAsFixed(1)} га', Icons.map, Colors.orange),
+              const SizedBox(height: 12),
+              const Divider(),
+              Text('🪓 СПЛОШНАЯ САНРУБКА', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+              _card('Объём', '${totalClearCuttingVol.toStringAsFixed(1)} м³', Icons.content_cut, Colors.deepOrange),
+              _card('Площадь', '${totalClearCuttingArea.toStringAsFixed(1)} га', Icons.map, Colors.deepOrange),
+              const SizedBox(height: 12),
+              const Divider(),
+              Text('🧹 УБОРКА ЗАХЛАМЛЕННОСТИ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.teal.shade800)),
+              _card('Объём', '${totalClearingVol.toStringAsFixed(1)} м³', Icons.cleaning_services, Colors.teal),
+              _card('Площадь', '${totalClearingArea.toStringAsFixed(1)} га', Icons.map, Colors.teal),
+              const SizedBox(height: 12),
+              const Divider(),
+              Text('🛡 ПАННО И АНШЛАГИ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue.shade800)),
+              _card('Штук', '$totalPanels', Icons.shield, Colors.blue),
+              const SizedBox(height: 12),
+              const Divider(),
+              Text('🛡 ОХРАНА', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue.shade800)),
               _card(_tr('guard_km'), '${totalGuardLength.toStringAsFixed(1)} ${_tr('km')}', Icons.route, Colors.blue),
               _card(_tr('guard_qty'), '$totalGuardQty ${_tr('pcs')}', Icons.shield, Colors.blue),
-              const SizedBox(height: 20),
-              Text(_tr('by_cultures'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const Divider(),
-              ...cultures.entries.map((e) => ListTile(
-                    title: Text(_tr(e.key)),
-                    trailing: Text('${e.value} ${_tr('pcs')}'),
-                  )),
             ],
           ),
         );
@@ -185,10 +223,10 @@ class StatsScreen extends StatelessWidget {
   }
 
   Widget _card(String title, String val, IconData icon, Color col) => Card(
-        child: ListTile(
-          leading: Icon(icon, color: col, size: 30),
-          title: Text(title),
-          trailing: Text(val, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        ),
-      );
+    child: ListTile(
+      leading: Icon(icon, color: col, size: 30),
+      title: Text(title),
+      trailing: Text(val, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+    ),
+  );
 }
