@@ -15,7 +15,6 @@ class TaskDialog extends StatefulWidget {
 
 class _TaskDialogState extends State<TaskDialog> {
   late String title;
-  late String sector;
   late String type;
   late DateTime startDate;
   late DateTime endDate;
@@ -65,7 +64,6 @@ class _TaskDialogState extends State<TaskDialog> {
   void initState() {
     super.initState();
     title = widget.task?.title ?? '';
-    sector = widget.task?.sector ?? '';
     type = widget.task?.type ?? 'Посадка';
     startDate = widget.task?.startDate ?? DateTime.now();
     endDate = widget.task?.endDate ?? DateTime.now().add(const Duration(days: 1));
@@ -106,7 +104,7 @@ class _TaskDialogState extends State<TaskDialog> {
 
     final resultTask = ForestTask(
       title: title,
-      sector: sector,
+      sector: widget.task?.sector ?? '',   // сохраняем старый сектор, поле больше не редактируется
       startDate: startDate,
       endDate: endDate,
       type: type,
@@ -147,41 +145,24 @@ class _TaskDialogState extends State<TaskDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 1. Поле "Что сделать" (меняется в зависимости от типа)
-            DropdownButtonFormField<String>(
-              value: type,
-              items: [
-                'Посадка', 'Посев', 'Выборочная санитарная рубка',
-                'Сплошная санитарная рубка', 'Уборка захламленности',
-                'Установка панно и аншлагов'
-              ].map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
-              onChanged: (v) => setState(() => type = v!),
-            ),
-            const SizedBox(height: 16),
-
-            // 2. Участок/Квартал (общее поле sector)
-            TextFormField(
-              initialValue: sector,
-              decoration: InputDecoration(labelText: _tr('sector')),
-              onChanged: (v) => sector = v,
+            // Тип работы (только отображение, не редактируется)
+            Text(
+              _tr(type),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green),
             ),
             const SizedBox(height: 16),
 
             // ---------- ПОЛЯ ТОЛЬКО ДЛЯ ПОСАДКИ ----------
             if (type == 'Посадка') ...[
-              DropdownButtonFormField<String>(
-                value: plantingType,
-                decoration: InputDecoration(labelText: _tr('planting_type')),
-                items: ['сеянцы', 'саженцы', 'черенки']
-                    .map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
+              TextFormField(
+                initialValue: plantingType ?? '',
+                decoration: const InputDecoration(labelText: 'Вид'),
                 onChanged: (v) => setState(() => plantingType = v),
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: cultureType,
-                decoration: InputDecoration(labelText: _tr('culture_type')),
-                items: ['ильмовые', 'клен', 'ясень', 'акация', 'смородина', 'лох', 'шиповник', 'плодово-косточковые', 'плодово-семечковые', 'прочие']
-                    .map((e) => DropdownMenuItem(value: e, child: Text(_tr(e)))).toList(),
+              TextFormField(
+                initialValue: cultureType ?? '',
+                decoration: const InputDecoration(labelText: 'Культура'),
                 onChanged: (v) => setState(() => cultureType = v),
               ),
               const SizedBox(height: 16),
