@@ -18,20 +18,15 @@ class _TaskDialogState extends State<TaskDialog> {
   late String type;
   late DateTime startDate;
   late DateTime endDate;
+  late bool isDone;
+  late double actualDuration;
+  late DateTime actualEndDate;
 
   // Посадка
   int? plantingQty;
   double? plantingArea;
   String? cultureType;
   String? plantingType;
-
-  // Вырубка (старая)
-  double? cuttingVol;
-  double? cuttingArea;
-
-  // Охрана
-  double? guardLength;
-  int? guardQty;
 
   // Посев
   String? sowingBreed;
@@ -53,7 +48,6 @@ class _TaskDialogState extends State<TaskDialog> {
   // Установка панно и аншлагов
   double? panelsQuantity;
 
-  // Общие
   String? location;
   String? quarter;
   String? allotment;
@@ -67,17 +61,14 @@ class _TaskDialogState extends State<TaskDialog> {
     type = widget.task?.type ?? 'Посадка';
     startDate = widget.task?.startDate ?? DateTime.now();
     endDate = widget.task?.endDate ?? DateTime.now().add(const Duration(days: 1));
+    isDone = widget.task?.isDone ?? false;
+    actualDuration = widget.task?.actualDuration ?? 0;
+    actualEndDate = widget.task?.actualEndDate ?? endDate;
 
     plantingQty = widget.task?.plantingQuantity;
     plantingArea = widget.task?.plantingArea;
     cultureType = widget.task?.cultureType ?? 'ильмовые';
     plantingType = widget.task?.plantingType ?? 'сеянцы';
-
-    cuttingVol = widget.task?.cuttingVolume;
-    cuttingArea = widget.task?.cuttingArea;
-
-    guardLength = widget.task?.guardLength;
-    guardQty = widget.task?.guardQuantity;
 
     sowingBreed = widget.task?.sowingBreed;
     sowingQuantityKg = widget.task?.sowingQuantityKg;
@@ -104,19 +95,17 @@ class _TaskDialogState extends State<TaskDialog> {
 
     final resultTask = ForestTask(
       title: title,
-      sector: widget.task?.sector ?? '',   // сохраняем старый сектор, поле больше не редактируется
+      sector: widget.task?.sector ?? '',
       startDate: startDate,
       endDate: endDate,
       type: type,
-      isDone: widget.task?.isDone ?? false,
+      isDone: isDone,
+      actualDuration: isDone ? actualDuration : null,
+      actualEndDate: isDone ? actualEndDate : null,
       plantingQuantity: type == 'Посадка' ? plantingQty : null,
       plantingArea: type == 'Посадка' ? plantingArea : null,
       cultureType: type == 'Посадка' ? cultureType : null,
       plantingType: type == 'Посадка' ? plantingType : null,
-      cuttingVolume: null,
-      cuttingArea: null,
-      guardLength: null,
-      guardQuantity: null,
       sowingBreed: type == 'Посев' ? sowingBreed : null,
       sowingQuantityKg: type == 'Посев' ? sowingQuantityKg : null,
       sowingAreaHa: type == 'Посев' ? sowingAreaHa : null,
@@ -145,14 +134,14 @@ class _TaskDialogState extends State<TaskDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Тип работы (только отображение, не редактируется)
+            // Тип (не редактируется)
             Text(
               _tr(type),
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green),
             ),
             const SizedBox(height: 16),
 
-            // ---------- ПОЛЯ ТОЛЬКО ДЛЯ ПОСАДКИ ----------
+            // ---------- ПОЛЯ ПОСАДКИ ----------
             if (type == 'Посадка') ...[
               TextFormField(
                 initialValue: plantingType ?? '',
@@ -195,7 +184,7 @@ class _TaskDialogState extends State<TaskDialog> {
               ),
             ],
 
-            // ---------- ПОЛЯ ТОЛЬКО ДЛЯ ПОСЕВА ----------
+            // ---------- ПОЛЯ ДЛЯ ПОСЕВА ----------
             if (type == 'Посев') ...[
               DropdownButtonFormField<String>(
                 value: sowingBreed,
@@ -234,7 +223,7 @@ class _TaskDialogState extends State<TaskDialog> {
               ),
             ],
 
-            // ---------- ПОЛЯ ДЛЯ ВЫБОРОЧНОЙ САНРУБКИ ----------
+            // ---------- ДРУГИЕ ТИПЫ (как раньше) ----------
             if (type == 'Выборочная санитарная рубка') ...[
               Row(
                 children: [
@@ -279,7 +268,6 @@ class _TaskDialogState extends State<TaskDialog> {
               ),
             ],
 
-            // ---------- ПОЛЯ ДЛЯ СПЛОШНОЙ САНРУБКИ ----------
             if (type == 'Сплошная санитарная рубка') ...[
               Row(
                 children: [
@@ -324,7 +312,6 @@ class _TaskDialogState extends State<TaskDialog> {
               ),
             ],
 
-            // ---------- ПОЛЯ ДЛЯ УБОРКИ ЗАХЛАМЛЕННОСТИ ----------
             if (type == 'Уборка захламленности') ...[
               Row(
                 children: [
@@ -369,7 +356,6 @@ class _TaskDialogState extends State<TaskDialog> {
               ),
             ],
 
-            // ---------- ПОЛЯ ДЛЯ УСТАНОВКИ ПАННО ----------
             if (type == 'Установка панно и аншлагов') ...[
               TextFormField(
                 initialValue: panelsQuantity?.toString() ?? '',
@@ -399,14 +385,55 @@ class _TaskDialogState extends State<TaskDialog> {
               ),
             ],
 
-            // --- ВЫБОР ДАТЫ ---
+            // --- БЛОК ЗАВЕРШЕНИЯ ---
+            CheckboxListTile(
+              title: const Text("Завершено"),
+              value: isDone,
+              onChanged: (v) => setState(() {
+                isDone = v!;
+                if (isDone) {
+                  actualDuration = actualDuration > 0 ? actualDuration : 1;
+                  actualEndDate = endDate; // по умолчанию плановая дата
+                }
+              }),
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+            if (isDone) ...[
+              TextFormField(
+                initialValue: actualDuration.toString().replaceAll(RegExp(r'\.0$'), ''),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Факт. дней'),
+                onChanged: (v) => actualDuration = double.tryParse(v.replaceAll(',', '.')) ?? 0,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text('Факт. дата окончания: '),
+                  TextButton(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: actualEndDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) {
+                        setState(() => actualEndDate = picked);
+                      }
+                    },
+                    child: Text(DateFormat('dd.MM.yy').format(actualEndDate)),
+                  ),
+                ],
+              ),
+            ],
+
+            // --- ДАТЫ ПЛАНОВЫЕ ---
             Row(
               children: [
                 const Icon(Icons.date_range, color: Colors.green),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextButton(
-                    style: TextButton.styleFrom(alignment: Alignment.centerLeft),
                     onPressed: () async {
                       final picked = await showDateRangePicker(
                         context: context,
@@ -423,6 +450,9 @@ class _TaskDialogState extends State<TaskDialog> {
                         setState(() {
                           startDate = picked.start;
                           endDate = picked.end;
+                          if (isDone) {
+                            actualEndDate = endDate; // обновим по умолчанию
+                          }
                         });
                       }
                     },

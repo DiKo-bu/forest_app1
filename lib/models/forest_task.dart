@@ -6,17 +6,17 @@ class ForestTask {
   bool isDone;
   String type;
 
-  // Посадка (старые поля)
+  // Посадка
   int? plantingQuantity;
   double? plantingArea;
   String? cultureType;
-  String? plantingType;   // сеянцы/саженцы/черенки
+  String? plantingType;
 
-  // Вырубка (старые)
+  // Вырубка (старая)
   double? cuttingVolume;
   double? cuttingArea;
 
-  // Охрана (старые)
+  // Охрана
   double? guardLength;
   int? guardQuantity;
 
@@ -26,8 +26,8 @@ class ForestTask {
   double? sowingAreaHa;
 
   // Выборочная санитарная рубка
-  double? selectiveCuttingArea;   // cuttingArea
-  double? selectiveCuttingVolume; // cuttingVolume
+  double? selectiveCuttingArea;
+  double? selectiveCuttingVolume;
 
   // Сплошная санитарная рубка
   double? clearCuttingArea;
@@ -41,9 +41,13 @@ class ForestTask {
   double? panelsQuantity;
 
   // Общие
-  String? location;   // "Где?" (для Посадки/Посева)
-  String? quarter;    // Квартал
-  String? allotment;  // Выдел
+  String? location;
+  String? quarter;
+  String? allotment;
+
+  // Фактическая длительность и дата завершения
+  double? actualDuration;
+  DateTime? actualEndDate;
 
   ForestTask({
     required this.title,
@@ -73,6 +77,8 @@ class ForestTask {
     this.location,
     this.quarter,
     this.allotment,
+    this.actualDuration,
+    this.actualEndDate,
   });
 
   Map<String, dynamic> toJson() => {
@@ -103,6 +109,8 @@ class ForestTask {
     if (location != null) 'location': location,
     if (quarter != null) 'quarter': quarter,
     if (allotment != null) 'allotment': allotment,
+    if (actualDuration != null) 'actualDuration': actualDuration,
+    if (actualEndDate != null) 'actualEndDate': actualEndDate!.toIso8601String(),
   };
 
   factory ForestTask.fromJson(Map<String, dynamic> json) => ForestTask(
@@ -133,5 +141,7 @@ class ForestTask {
     location: json['location'],
     quarter: json['quarter'],
     allotment: json['allotment'],
+    actualDuration: json['actualDuration']?.toDouble(),
+    actualEndDate: json['actualEndDate'] != null ? DateTime.tryParse(json['actualEndDate']) : null,
   );
 }
