@@ -1,14 +1,50 @@
-// lib/main.dart
-
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // <-- ИМПОРТ ЛОКАЛИЗАЦИИ
-import 'screens/task_screen.dart'; // Импорт главного экрана
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:http/http.dart' as http;
+import 'screens/task_screen.dart';
 
-void main() => runApp(const ForestApp());
+class CustomHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    final client = super.createHttpClient(context);
+    client.badCertificateCallback = (cert, host, port) => true;
+    return client;
+  }
+
+  @override
+  Future<InternetAddress> resolve(String host, {required bool followRedirects}) async {
+    if (host == 'localhost' || host == '127.0.0.1' || host.startsWith('192.168.')) {
+      return super.resolve(host, followRedirects: followRedirects);
+    }
+    try {
+      final uri = Uri.https('cloudflare-dns.com', '/dns-query', {'name': host, 'type': 'A'});
+      final response = await http.get(uri, headers: {'Accept': 'application/dns-json'});
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['Answer'] != null && (data['Answer'] as List).isNotEmpty) {
+          final ip = data['Answer'][0]['data'] as String;
+          print('DoH resolved $host → $ip');
+          return InternetAddress(ip);
+        }
+      }
+    } catch (e) {
+      print('DoH resolution failed: $e');
+    }
+    return super.resolve(host, followRedirects: followRedirects);
+  }
+}
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  HttpOverrides.global = CustomHttpOverrides();
+  runApp(const ForestApp());
+}
 
 class ForestApp extends StatelessWidget {
   const ForestApp({super.key});
-  
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -20,20 +56,16 @@ class ForestApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
       ),
-      
-      // --- НАСТРОЙКИ СИСТЕМНОГО ЯЗЫКА ДЛЯ КАЛЕНДАРЯ ---
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('ru'), // Поддержка русского
-        Locale('kk'), // Поддержка казахского
+        Locale('ru'),
+        Locale('kk'),
       ],
-      // ------------------------------------------------
-      
-      home: const TaskScreen(), // Вызов выделенного модуля
+      home: const TaskScreen(),
     );
   }
 }
