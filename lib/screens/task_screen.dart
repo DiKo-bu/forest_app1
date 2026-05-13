@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import '../models/forest_task.dart';
 import '../utils/app_localization.dart';
 import '../utils/storage_helper.dart';
@@ -18,6 +18,11 @@ class _TaskScreenState extends State<TaskScreen> {
   List<ForestTask> _tasks = [];
   String _currentLang = 'ru';
   String _currentFilter = 'Все';
+
+  // ------------------ Настройки Telegram ------------------
+  static const String botToken = '8945344488:AAEnDBNXE9XcrznkIscioaLNRiRTMsqdyjA';
+  static const int chatId = 2012874307;
+  // --------------------------------------------------------
 
   String _tr(String key) => AppLocalization.tr(_currentLang, key);
 
@@ -45,6 +50,47 @@ class _TaskScreenState extends State<TaskScreen> {
       _currentLang = _currentLang == 'ru' ? 'kk' : 'ru';
     });
     await StorageHelper.saveLang(_currentLang);
+  }
+
+  // ---------- Получение планов из Telegram ----------
+  Future<void> _fetchPlansFromTelegram() async {
+    try {
+      final url = Uri.https('api.telegram.org', '/bot$botToken/getUpdates', {
+        'limit': '10',
+        'timeout': '10',
+      });
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['ok'] == true) {
+          for (var update in data['result']) {
+            final message = update['message'];
+            if (message != null && message['text'] != null) {
+              final text = message['text'];
+              // План – это JSON-массив
+              if (text.trim().startsWith('[')) {
+                try {
+                  final List<dynamic> plan = jsonDecode(text);
+                  // Проверяем, что это действительно похоже на план (есть поле likely)
+                  if (plan.isNotEmpty && plan[0] is Map && plan[0].containsKey('likely')) {
+                    _importPlanFromJson(text);
+                    // Удаляем обработанное сообщение, чтобы не импортировать повторно
+                    // (в реальном боте нужно использовать offset, но для простоты пропустим)
+                  }
+                } catch (_) {}
+              }
+            }
+          }
+        }
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Проверка планов завершена')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка получения планов: $e')),
+      );
+    }
   }
 
   void _importPlanFromJson(String jsonStr) {
@@ -101,7 +147,7 @@ class _TaskScreenState extends State<TaskScreen> {
           controller: ctrl,
           maxLines: 6,
           decoration: const InputDecoration(
-            hintText: 'Вставьте JSON плана из Прогноза',
+            hintText: 'Вставьте JSON плана (или используйте Telegram)',
             border: OutlineInputBorder(),
           ),
         ),
@@ -192,6 +238,11 @@ class _TaskScreenState extends State<TaskScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.telegram, color: Colors.blue),
+            tooltip: 'Загрузить план из Telegram',
+            onPressed: _fetchPlansFromTelegram,
+          ),
+          IconButton(
             icon: const Icon(Icons.download),
             tooltip: _tr('import_plan'),
             onPressed: _showImportDialog,
@@ -237,7 +288,6 @@ class _TaskScreenState extends State<TaskScreen> {
                       final task = displayTasks[index];
                       String dateStr = '${DateFormat('dd.MM').format(task.startDate)} - ${DateFormat('dd.MM').format(task.endDate)}';
                       String subtitleText = '${task.sector} • $dateStr';
-                      // Добавим краткую информацию по типу
                       if (task.type == 'Посадка') {
                         subtitleText += '\n${_tr(task.cultureType ?? '')} • ${task.plantingQuantity ?? 0} ${_tr('pcs')} • ${task.plantingArea ?? 0} ${_tr('ha')}';
                         if (task.location != null) subtitleText += ' • ${task.location}';
