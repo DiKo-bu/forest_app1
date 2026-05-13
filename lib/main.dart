@@ -25,13 +25,10 @@ class CustomHttpOverrides extends HttpOverrides {
         final data = jsonDecode(response.body);
         if (data['Answer'] != null && (data['Answer'] as List).isNotEmpty) {
           final ip = data['Answer'][0]['data'] as String;
-          print('DoH resolved $host → $ip');
           return InternetAddress(ip);
         }
       }
-    } catch (e) {
-      print('DoH resolution failed: $e');
-    }
+    } catch (_) {}
     return super.resolve(host, followRedirects: followRedirects);
   }
 }
