@@ -11,10 +11,8 @@ class StatsScreen extends StatelessWidget {
   final String lang;
   const StatsScreen({super.key, required this.lang});
 
-  // ------------------ Настройки Telegram ------------------
   static const String botToken = '8945344488:AAEnDBNXE9XcrznkIscioaLNRiRTMsqdyjA';
   static const int chatId = 2012874307;
-  // --------------------------------------------------------
 
   String _tr(String key) => AppLocalization.tr(lang, key);
 
@@ -43,7 +41,6 @@ class StatsScreen extends StatelessWidget {
         'completed': t.isDone,
         if (t.isDone) 'actual': t.actualDuration ?? 0,
         if (t.actualEndDate != null) 'actualEndDate': t.actualEndDate!.toIso8601String(),
-        // дополнительные поля
         if (t.plantingQuantity != null) 'plantingQuantity': t.plantingQuantity,
         if (t.plantingArea != null) 'plantingArea': t.plantingArea,
         if (t.sowingQuantityKg != null) 'sowingQuantityKg': t.sowingQuantityKg,
@@ -61,6 +58,7 @@ class StatsScreen extends StatelessWidget {
     await Share.share(jsonStr, subject: 'Отчет лесничества');
   }
 
+  // Отправка отчёта в Telegram (sendMessage, как в prognoz)
   Future<void> _sendReportToTelegram(List<ForestTask> tasks, BuildContext context) async {
     final Map<String, dynamic> report = {};
     for (var t in tasks) {
@@ -83,6 +81,7 @@ class StatsScreen extends StatelessWidget {
     }
     final jsonStr = jsonEncode(report);
     try {
+      // Используем sendMessage, как в prognoz
       final url = Uri.https('api.telegram.org', '/bot$botToken/sendMessage', {
         'chat_id': '$chatId',
         'text': jsonStr,
