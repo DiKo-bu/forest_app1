@@ -159,7 +159,7 @@ class _TaskScreenState extends State<TaskScreen> {
           IconButton(
             icon: const Icon(Icons.cloud_download, color: Colors.blue),
             tooltip: 'Загрузить план с сервера',
-            onPressed: _fetchPlan,
+            onPressed: _fetchPlan,   // <-- вот эта кнопка
           ),
           IconButton(
             icon: const Icon(Icons.download),
