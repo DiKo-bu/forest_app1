@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/forest_task.dart';
 import '../utils/app_localization.dart';
 import '../utils/storage_helper.dart';
+import '../utils/server_api.dart';
+import '../utils/plan_importer.dart';
+import '../utils/task_filter.dart';
 import 'stats_screen.dart';
 import '../widgets/task_dialog.dart';
+import '../widgets/confirm_delete_dialog.dart';
+import '../widgets/executor_dialog.dart';
 
 class TaskScreen extends StatefulWidget {
   const TaskScreen({super.key});
@@ -18,11 +22,6 @@ class _TaskScreenState extends State<TaskScreen> {
   List<ForestTask> _tasks = [];
   String _currentLang = 'ru';
   String _currentFilter = 'Все';
-
-  // ------------------ Настройки Telegram ------------------
-  static const String botToken = '8945344488:AAEnDBNXE9XcrznkIscioaLNRiRTMsqdyjA';
-  static const int chatId = 2012874307;
-  // --------------------------------------------------------
 
   String _tr(String key) => AppLocalization.tr(_currentLang, key);
 
@@ -52,87 +51,35 @@ class _TaskScreenState extends State<TaskScreen> {
     await StorageHelper.saveLang(_currentLang);
   }
 
-  // ---------- Получение планов из Telegram ----------
-  Future<void> _fetchPlansFromTelegram() async {
-    try {
-      final url = Uri.https('api.telegram.org', '/bot$botToken/getUpdates', {
-        'limit': '10',
-        'timeout': '10',
-      });
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['ok'] == true) {
-          for (var update in data['result']) {
-            final message = update['message'];
-            if (message != null && message['text'] != null) {
-              final text = message['text'];
-              // План – это JSON-массив
-              if (text.trim().startsWith('[')) {
-                try {
-                  final List<dynamic> plan = jsonDecode(text);
-                  // Проверяем, что это действительно похоже на план (есть поле likely)
-                  if (plan.isNotEmpty && plan[0] is Map && plan[0].containsKey('likely')) {
-                    _importPlanFromJson(text);
-                    // Удаляем обработанное сообщение, чтобы не импортировать повторно
-                    // (в реальном боте нужно использовать offset, но для простоты пропустим)
-                  }
-                } catch (_) {}
-              }
-            }
-          }
-        }
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Проверка планов завершена')),
+  Future<void> _fetchPlansFromServer() async {
+    final executor = await StorageHelper.getExecutorId();
+    if (executor.isEmpty) {
+      final id = await showDialog<String>(
+        context: context,
+        builder: (_) => const ExecutorDialog(),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка получения планов: $e')),
-      );
+      if (id == null || id.isEmpty) return;
+      await StorageHelper.saveExecutorId(id);
+      return _fetchPlansFromServer(); // рекурсивно, чтобы сразу загрузить план
     }
-  }
-
-  void _importPlanFromJson(String jsonStr) {
-    try {
-      final List<dynamic> plan = jsonDecode(jsonStr);
-      for (var item in plan) {
-        String type = item['workType'] ?? 'Посадка';
-        final task = ForestTask(
-          title: item['name'] ?? '',
-          sector: item['sector'] ?? '',
-          startDate: DateTime.now(),
-          endDate: DateTime.now().add(Duration(days: (item['likely'] ?? 1).toInt())),
-          type: type,
-          isDone: false,
-          plantingQuantity: (type == 'Посадка' && item['plantingQuantity'] != null) ? (item['plantingQuantity'] as num).toInt() : null,
-          plantingArea: (type == 'Посадка' && item['plantingArea'] != null) ? (item['plantingArea'] as num).toDouble() : null,
-          cultureType: item['culture'],
-          plantingType: item['plantingType'],
-          sowingBreed: (type == 'Посев') ? item['sowingBreed'] : null,
-          sowingQuantityKg: (type == 'Посев' && item['sowingQuantityKg'] != null) ? (item['sowingQuantityKg'] as num).toDouble() : null,
-          sowingAreaHa: (type == 'Посев' && item['sowingAreaHa'] != null) ? (item['sowingAreaHa'] as num).toDouble() : null,
-          selectiveCuttingArea: (type == 'Выборочная санитарная рубка' && item['cuttingArea'] != null) ? (item['cuttingArea'] as num).toDouble() : null,
-          selectiveCuttingVolume: (type == 'Выборочная санитарная рубка' && item['cuttingVolume'] != null) ? (item['cuttingVolume'] as num).toDouble() : null,
-          clearCuttingArea: (type == 'Сплошная санитарная рубка' && item['clearCuttingArea'] != null) ? (item['clearCuttingArea'] as num).toDouble() : null,
-          clearCuttingVolume: (type == 'Сплошная санитарная рубка' && item['clearCuttingVolume'] != null) ? (item['clearCuttingVolume'] as num).toDouble() : null,
-          clearingArea: (type == 'Уборка захламленности' && item['clearingArea'] != null) ? (item['clearingArea'] as num).toDouble() : null,
-          clearingVolume: (type == 'Уборка захламленности' && item['clearingVolume'] != null) ? (item['clearingVolume'] as num).toDouble() : null,
-          panelsQuantity: (type == 'Установка панно и аншлагов' && item['panelsQuantity'] != null) ? (item['panelsQuantity'] as num).toDouble() : null,
-          location: item['location'],
-          quarter: item['quarter'],
-          allotment: item['allotment'],
+    final json = await fetchPlan(executor);
+    if (json != null) {
+      final newTasks = parsePlanFromJson(json);
+      if (newTasks != null) {
+        _tasks.addAll(newTasks);
+        _saveTasks();
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${_tr('import')}: загружено ${newTasks.length} задач')),
         );
-        _tasks.add(task);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Неверный формат плана')),
+        );
       }
-      _saveTasks();
-      setState(() {});
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_tr('import')}: загружено ${plan.length} задач')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка импорта: ${e.toString()}')),
+        const SnackBar(content: Text('План для этого исполнителя не найден')),
       );
     }
   }
@@ -147,7 +94,7 @@ class _TaskScreenState extends State<TaskScreen> {
           controller: ctrl,
           maxLines: 6,
           decoration: const InputDecoration(
-            hintText: 'Вставьте JSON плана (или используйте Telegram)',
+            hintText: 'Вставьте JSON плана (или загрузите с сервера)',
             border: OutlineInputBorder(),
           ),
         ),
@@ -155,7 +102,15 @@ class _TaskScreenState extends State<TaskScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_tr('cancel'))),
           ElevatedButton(
             onPressed: () {
-              _importPlanFromJson(ctrl.text);
+              final newTasks = parsePlanFromJson(ctrl.text);
+              if (newTasks != null) {
+                _tasks.addAll(newTasks);
+                _saveTasks();
+                setState(() {});
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${_tr('import')}: загружено ${newTasks.length} задач')),
+                );
+              }
               Navigator.pop(ctx);
             },
             child: Text(_tr('import')),
@@ -165,39 +120,20 @@ class _TaskScreenState extends State<TaskScreen> {
     );
   }
 
-  List<ForestTask> get _filteredAndSortedTasks {
-    List<ForestTask> result = _tasks;
-    if (_currentFilter != 'Все') {
-      result = result.where((t) => t.type == _currentFilter).toList();
-    }
-    result.sort((a, b) {
-      if (a.isDone == b.isDone) return a.startDate.compareTo(b.startDate);
-      return a.isDone ? 1 : -1;
-    });
-    return result;
-  }
+  List<ForestTask> get _filteredAndSortedTasks => filterAndSortTasks(_tasks, _currentFilter);
 
   void _confirmDelete(int index) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_tr('del_title')),
-        content: Text('${_tr('del_desc')} "${_filteredAndSortedTasks[index].title}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(_tr('cancel'))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              setState(() {
-                final taskToRemove = _filteredAndSortedTasks[index];
-                _tasks.remove(taskToRemove);
-              });
-              _saveTasks();
-              Navigator.pop(context);
-            },
-            child: Text(_tr('del_btn'), style: const TextStyle(color: Colors.white)),
-          ),
-        ],
+      builder: (_) => ConfirmDeleteDialog(
+        lang: _currentLang,
+        taskTitle: _filteredAndSortedTasks[index].title,
+        onConfirm: () {
+          final taskToRemove = _filteredAndSortedTasks[index];
+          _tasks.remove(taskToRemove);
+          _saveTasks();
+          setState(() {});
+        },
       ),
     );
   }
@@ -238,9 +174,9 @@ class _TaskScreenState extends State<TaskScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.telegram, color: Colors.blue),
-            tooltip: 'Загрузить план из Telegram',
-            onPressed: _fetchPlansFromTelegram,
+            icon: const Icon(Icons.cloud_download, color: Colors.blue),
+            tooltip: 'Загрузить план с сервера',
+            onPressed: _fetchPlansFromServer,
           ),
           IconButton(
             icon: const Icon(Icons.download),
