@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/forest_task.dart';
 import '../utils/storage_helper.dart';
-import '../utils/dns_helper.dart';
 import '../utils/app_localization.dart';
 
 class StatsScreen extends StatelessWidget {
@@ -89,11 +88,10 @@ class StatsScreen extends StatelessWidget {
     }
     final jsonStr = jsonEncode(report);
     try {
-      final ip = await resolveHost(serverHost);
-      final url = Uri.https(ip, '/report');
+      final url = Uri.https(serverHost, '/report');
       final response = await http.post(
         url,
-        headers: {'Host': serverHost, 'Content-Type': 'application/json', 'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json'},
         body: jsonStr,
       );
       if (response.statusCode == 200) {
