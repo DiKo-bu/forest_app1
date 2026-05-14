@@ -5,14 +5,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/forest_task.dart';
 import '../utils/storage_helper.dart';
+import '../utils/dns_helper.dart';
 import '../utils/app_localization.dart';
 
 class StatsScreen extends StatelessWidget {
   final String lang;
   const StatsScreen({super.key, required this.lang});
 
-  static const String botToken = '8945344488:AAEnDBNXE9XcrznkIscioaLNRiRTMsqdyjA';
-  static const int chatId = 2012874307;
+  static const String serverHost = 'poems-incidents-styles-blanket.trycloudflare.com';
 
   String _tr(String key) => AppLocalization.tr(lang, key);
 
@@ -58,9 +58,17 @@ class StatsScreen extends StatelessWidget {
     await Share.share(jsonStr, subject: 'Отчет лесничества');
   }
 
-  // Отправка отчёта в Telegram (sendMessage, как в prognoz)
-  Future<void> _sendReportToTelegram(List<ForestTask> tasks, BuildContext context) async {
-    final Map<String, dynamic> report = {};
+  Future<void> _sendReportToServer(List<ForestTask> tasks, BuildContext context) async {
+    final executor = await StorageHelper.getExecutorId();
+    if (executor.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Сначала укажите исполнителя на главном экране')),
+      );
+      return;
+    }
+    final Map<String, dynamic> report = {
+      'executor': executor,
+    };
     for (var t in tasks) {
       report[t.title] = {
         'completed': t.isDone,
@@ -81,15 +89,16 @@ class StatsScreen extends StatelessWidget {
     }
     final jsonStr = jsonEncode(report);
     try {
-      // Используем sendMessage, как в prognoz
-      final url = Uri.https('api.telegram.org', '/bot$botToken/sendMessage', {
-        'chat_id': '$chatId',
-        'text': jsonStr,
-      });
-      final response = await http.get(url);
+      final ip = await resolveHost(serverHost);
+      final url = Uri.http(ip, '/report');
+      final response = await http.post(
+        url,
+        headers: {'Host': serverHost, 'Content-Type': 'application/json'},
+        body: jsonStr,
+      );
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Отчёт отправлен в Telegram')),
+          const SnackBar(content: Text('Отчёт отправлен на сервер')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -117,9 +126,9 @@ class StatsScreen extends StatelessWidget {
             foregroundColor: Colors.white,
             actions: [
               IconButton(
-                icon: const Icon(Icons.telegram, color: Colors.blue),
-                tooltip: 'Отправить отчёт в Telegram',
-                onPressed: () => _sendReportToTelegram(allTasks, context),
+                icon: const Icon(Icons.cloud_upload, color: Colors.blue),
+                tooltip: 'Отправить отчёт на сервер',
+                onPressed: () => _sendReportToServer(allTasks, context),
               ),
               IconButton(
                 icon: const Icon(Icons.share),
