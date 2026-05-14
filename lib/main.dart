@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'screens/task_screen.dart';
 
@@ -53,15 +52,6 @@ class ForestApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
       ),
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('ru'),
-        Locale('kk'),
-      ],
       home: const TaskScreen(),
     );
   }
