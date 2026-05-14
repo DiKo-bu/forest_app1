@@ -39,3 +39,16 @@ class StorageHelper {
     await prefs.setString(_tasksKey, encoded);
   }
 }
+
+// Методы для работы с ID исполнителя
+static const String _executorKey = 'executor_id';
+
+static Future<String> getExecutorId() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString(_executorKey) ?? '';
+}
+
+static Future<void> saveExecutorId(String id) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_executorKey, id);
+}
