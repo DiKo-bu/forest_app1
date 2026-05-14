@@ -12,7 +12,7 @@ class StatsScreen extends StatelessWidget {
   final String lang;
   const StatsScreen({super.key, required this.lang});
 
-  static const String serverHost = 'poems-incidents-styles-blanket.trycloudflare.com';
+  static const String serverHost = 'testing-worlds-boost-absolutely.trycloudflare.com';
 
   String _tr(String key) => AppLocalization.tr(lang, key);
 

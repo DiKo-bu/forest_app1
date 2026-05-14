@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../utils/dns_helper.dart';
 
 class TaskService {
-  static const String serverHost = 'poems-incidents-styles-blanket.trycloudflare.com';
+  static const String serverHost = 'testing-worlds-boost-absolutely.trycloudflare.com';
 
   static Future<String?> fetchPlan(String executorId) async {
     if (executorId.isEmpty) return null;
