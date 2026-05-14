@@ -1,5 +1,3 @@
-// lib/utils/storage_helper.dart
-
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/forest_task.dart';
@@ -7,24 +5,23 @@ import '../models/forest_task.dart';
 class StorageHelper {
   static const _tasksKey = 'forest_tasks';
   static const _langKey = 'app_lang';
+  static const _executorKey = 'executor_id';
 
-  // Загрузка языка
+  // Язык
   static Future<String> loadLang() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_langKey) ?? 'ru';
   }
 
-  // Сохранение языка
   static Future<void> saveLang(String lang) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_langKey, lang);
   }
 
-  // Загрузка задач
+  // Задачи
   static Future<List<ForestTask>> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final String? tasksString = prefs.getString(_tasksKey);
-    
     if (tasksString != null) {
       final List<dynamic> decoded = jsonDecode(tasksString);
       return decoded.map((e) => ForestTask.fromJson(e)).toList();
@@ -32,23 +29,20 @@ class StorageHelper {
     return [];
   }
 
-  // Сохранение задач
   static Future<void> saveTasks(List<ForestTask> tasks) async {
     final prefs = await SharedPreferences.getInstance();
     final String encoded = jsonEncode(tasks.map((t) => t.toJson()).toList());
     await prefs.setString(_tasksKey, encoded);
   }
-}
 
-// Методы для работы с ID исполнителя
-static const String _executorKey = 'executor_id';
+  // ID исполнителя
+  static Future<String> getExecutorId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_executorKey) ?? '';
+  }
 
-static Future<String> getExecutorId() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getString(_executorKey) ?? '';
-}
-
-static Future<void> saveExecutorId(String id) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_executorKey, id);
+  static Future<void> saveExecutorId(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_executorKey, id);
+  }
 }
