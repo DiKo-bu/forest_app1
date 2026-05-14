@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/forest_task.dart';
 import '../utils/app_localization.dart';
 import '../utils/storage_helper.dart';
 import 'stats_screen.dart';

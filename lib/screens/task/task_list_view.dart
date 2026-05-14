@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/forest_task.dart';
 import '../../utils/app_localization.dart';
-import '../../widgets/task_dialog.dart';
 
 class TaskListView extends StatelessWidget {
   final List<ForestTask> tasks;
@@ -10,7 +9,7 @@ class TaskListView extends StatelessWidget {
   final String currentFilter;
   final Function(String) onFilterChanged;
   final Function(int) onDelete;
-  final Function(bool?) onToggleDone;
+  final Function(int, bool?) onToggleDone;
   final Function(ForestTask) onSaveTask;
   final Function({int? editIndex}) onShowDialog;
 
@@ -64,7 +63,34 @@ class TaskListView extends StatelessWidget {
                     final task = displayTasks[index];
                     String dateStr = '${DateFormat('dd.MM').format(task.startDate)} - ${DateFormat('dd.MM').format(task.endDate)}';
                     String subtitleText = '${task.sector} • $dateStr';
-                    // (здесь можно добавить детализацию, как раньше)
+                    // детализация по типам
+                    if (task.type == 'Посадка') {
+                      subtitleText += '\n${_tr(task.cultureType ?? '')} • ${task.plantingQuantity ?? 0} ${_tr('pcs')} • ${task.plantingArea ?? 0} ${_tr('ha')}';
+                      if (task.location != null) subtitleText += ' • ${task.location}';
+                    } else if (task.type == 'Посев') {
+                      subtitleText += '\n${task.sowingBreed ?? ''} • ${task.sowingQuantityKg ?? 0} кг • ${task.sowingAreaHa ?? 0} га';
+                      if (task.location != null) subtitleText += ' • ${task.location}';
+                    } else if (task.type == 'Выборочная санитарная рубка') {
+                      subtitleText += '\nПлощадь: ${task.selectiveCuttingArea ?? 0} га, Объём: ${task.selectiveCuttingVolume ?? 0} м³';
+                      if (task.quarter != null) subtitleText += ' • Кв. ${task.quarter}';
+                      if (task.allotment != null) subtitleText += ' • Выд. ${task.allotment}';
+                    } else if (task.type == 'Сплошная санитарная рубка') {
+                      subtitleText += '\nПлощадь: ${task.clearCuttingArea ?? 0} га, Объём: ${task.clearCuttingVolume ?? 0} м³';
+                      if (task.quarter != null) subtitleText += ' • Кв. ${task.quarter}';
+                      if (task.allotment != null) subtitleText += ' • Выд. ${task.allotment}';
+                    } else if (task.type == 'Уборка захламленности') {
+                      subtitleText += '\nПлощадь: ${task.clearingArea ?? 0} га, Объём: ${task.clearingVolume ?? 0} м³';
+                      if (task.quarter != null) subtitleText += ' • Кв. ${task.quarter}';
+                      if (task.allotment != null) subtitleText += ' • Выд. ${task.allotment}';
+                    } else if (task.type == 'Установка панно и аншлагов') {
+                      subtitleText += '\nШтук: ${task.panelsQuantity ?? 0}';
+                      if (task.quarter != null) subtitleText += ' • Кв. ${task.quarter}';
+                      if (task.allotment != null) subtitleText += ' • Выд. ${task.allotment}';
+                    } else if (task.type == 'Охрана') {
+                      if (task.guardLength != null) subtitleText += '\n${task.guardLength} ${_tr('km')}';
+                      if (task.guardQuantity != null) subtitleText += ' • ${task.guardQuantity} ${_tr('pcs')}';
+                    }
+
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       child: ListTile(
@@ -81,8 +107,7 @@ class TaskListView extends StatelessWidget {
                             color: Colors.green.shade800,
                           ),
                         ),
-                        title: Text(task.title,
-                            style: TextStyle(decoration: task.isDone ? TextDecoration.lineThrough : null)),
+                        title: Text(task.title, style: TextStyle(decoration: task.isDone ? TextDecoration.lineThrough : null)),
                         subtitle: Text(subtitleText),
                         isThreeLine: true,
                         trailing: Row(
@@ -91,7 +116,7 @@ class TaskListView extends StatelessWidget {
                             Checkbox(
                               activeColor: Colors.green,
                               value: task.isDone,
-                              onChanged: onToggleDone,
+                              onChanged: (val) => onToggleDone(index, val),
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
