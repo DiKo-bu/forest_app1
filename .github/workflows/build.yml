@@ -14,7 +14,6 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
           flutter-version: '3.16.0'
 
       - run: flutter create . --platforms android --org com.dikobu.forest_app
@@ -24,6 +23,16 @@ jobs:
           MANIFEST=android/app/src/main/AndroidManifest.xml
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
           sed -i '/<application/i \    <queries><intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent><intent><action android:name="android.intent.action.VIEW" /><data android:scheme="http" /></intent></queries>' $MANIFEST
+
+      - name: Fix Kotlin Duplicate Classes
+        run: |
+          GRADLE=android/app/build.gradle
+          echo "configurations {" >> $GRADLE
+          echo "    all {" >> $GRADLE
+          echo "        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'" >> $GRADLE
+          echo "        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'" >> $GRADLE
+          echo "    }" >> $GRADLE
+          echo "}" >> $GRADLE
 
       - run: flutter build apk --release
 
