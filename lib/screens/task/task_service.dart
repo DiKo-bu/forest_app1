@@ -8,7 +8,7 @@ class TaskService {
   static Future<String?> fetchPlan(String executorId) async {
     if (executorId.isEmpty) return null;
     final ip = await resolveHost(serverHost);
-    final url = Uri.http(ip, '/plan/$executorId');
+    final url = Uri.https(ip, '/plan/$executorId');
     final response = await http.get(url, headers: {'Host': serverHost});
     if (response.statusCode == 200 && response.body.isNotEmpty && response.body != '{}') {
       return response.body;

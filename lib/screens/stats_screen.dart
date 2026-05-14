@@ -90,10 +90,10 @@ class StatsScreen extends StatelessWidget {
     final jsonStr = jsonEncode(report);
     try {
       final ip = await resolveHost(serverHost);
-      final url = Uri.http(ip, '/report');
+      final url = Uri.https(ip, '/report');
       final response = await http.post(
         url,
-        headers: {'Host': serverHost, 'Content-Type': 'application/json'},
+        headers: {'Host': serverHost, 'Content-Type': 'application/json', 'Content-Type': 'application/json'},
         body: jsonStr,
       );
       if (response.statusCode == 200) {
